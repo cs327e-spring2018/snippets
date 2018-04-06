@@ -102,7 +102,7 @@ def run(argv=None):
 	parser = argparse.ArgumentParser()
 	known_args, pipeline_args = parser.parse_known_args(argv)
 	pipeline_args.extend([	
-      '--runner=DataflowRunner', # use DataflowRunner or DirectRunner
+      '--runner=DataflowRunner', # use DataflowRunner to run on Dataflow or DirectRunner to run on local VM
       '--project=utcs-spr2018', # change to your project
       '--staging_location=gs://cs327e-dataflow/staging', # change to your bucket
       '--temp_location=gs://cs327e-dataflow/tmp', # change to your bucket
