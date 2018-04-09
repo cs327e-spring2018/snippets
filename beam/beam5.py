@@ -103,7 +103,7 @@ def run(argv=None):
 	known_args, pipeline_args = parser.parse_known_args(argv)
 	pipeline_args.extend([	
       '--runner=DataflowRunner', # use DataflowRunner to run on Dataflow or DirectRunner to run on local VM
-      '--project=utcs-spr2018', # change to your project
+      '--project=utcs-spr2018', # change to your project_id
       '--staging_location=gs://cs327e-dataflow/staging', # change to your bucket
       '--temp_location=gs://cs327e-dataflow/tmp', # change to your bucket
       '--job_name=zillow-rentals-1bedroom' # assign descriptive name to this job, all in lower case letters
@@ -114,7 +114,7 @@ def run(argv=None):
 	
 	with beam.Pipeline(options=pipeline_options) as p:
 	
-		table_name = "utcs-spr2018:zillow.Rental_Price_1Bedroom" # format: PROJECT:DATASET.TABLE
+		table_name = "utcs-spr2018:zillow.Rental_Price_1Bedroom" # format: project_id:dataset.table
 		table_schema = init_bigquery_table()
     
 		lines = p | 'ReadFile' >> beam.io.ReadFromText('gs://utcs-spr2018-datasets/zillow/no_header/Zip_MedianRentalPrice_1Bedroom.csv')
