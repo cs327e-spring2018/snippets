@@ -58,7 +58,9 @@ def convert_month(month):
 		month_str = str(month)
 	return month_str
 
-def parse_records(line):
+def parse_line(line):
+  
+	parsed_records = []
 
 	tokens = line.split(",")
 	zipcode_with_quotes = tokens[0]
@@ -78,12 +80,13 @@ def parse_records(line):
 		month = 1;
 		
 		for month_index in range(start_month_index, end_month_index):
+			
 			price = tokens[month_index]
 			price = convert_price(price)
 				
 			date = str(year) + "-" + convert_month(month) + "-" + day
 			
-			return (zipcode, date, price)
+			parsed_records.append((zipcode, date, price))
 			
 			month += 1 # increments up to 12 for years 2015-2017
 			
@@ -92,24 +95,34 @@ def parse_records(line):
 		
 		start_month_index = end_month_index
 		end_month_index = start_month_index + 12
-		
+	
+	return parsed_records
+	
+	
+def parse_records(records):
+	return records
+	
 		
 def run(argv=None):	
 	
 	with beam.Pipeline(options=PipelineOptions()) as p:
 	
-		table_name = "utcs-spr2018:zillow.Rental_Price_1Bedroom" # format: PROJECT:DATASET.TABLE
+		table_name = "utcs-spr2018:zillow.Rental_Price_1Bedroom" # format: project_id:dataset.table
 		table_schema = init_bigquery_table()
     
 		lines = p | 'ReadFile' >> beam.io.ReadFromText('gs://utcs-spr2018-datasets/zillow/no_header/Zip_MedianRentalPrice_1Bedroom.csv')
 	
-		tuple_records = lines | 'CreateTupleRecords' >> (beam.Map(parse_records))
+		list_records = lines | 'CreateListRecords' >> (beam.Map(parse_line))
         
-		tuple_records | 'WriteTmpFile1' >> beam.io.WriteToText('/home/shirley_cohen/code/tmp/tuple_records', file_name_suffix='.txt')
+		list_records | 'WriteTmpFile1' >> beam.io.WriteToText('/home/shirley_cohen/code/tmp/list_records', file_name_suffix='.txt')
+		
+		tuple_records = list_records | 'CreateTupleRecords' >> (beam.FlatMap(parse_records))
+		
+		tuple_records | 'WriteTmpFile2' >> beam.io.WriteToText('/home/shirley_cohen/code/tmp/tuple_records', file_name_suffix='.txt')
 	
 		bigquery_records = tuple_records | 'CreateBigQueryRecord' >> beam.Map(create_bigquery_record)
 	
-		bigquery_records | 'WriteTmpFile2' >> beam.io.WriteToText('/home/shirley_cohen/code/tmp/bq_records', file_name_suffix='.txt')
+		bigquery_records | 'WriteTmpFile3' >> beam.io.WriteToText('/home/shirley_cohen/code/tmp/bq_records', file_name_suffix='.txt')
 	
 		bigquery_records | 'WriteBigQuery' >> beam.io.Write(
 		    beam.io.BigQuerySink(
@@ -119,5 +132,5 @@ def run(argv=None):
 		        write_disposition = beam.io.BigQueryDisposition.WRITE_TRUNCATE))
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
+  logging.getLogger().setLevel(logging.ERROR)
   run()

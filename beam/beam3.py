@@ -22,12 +22,14 @@ def convert_price(price):
 		price = None
 	return price
 
-def parse_records(line):
+def parse_line(line):
+  
+	parsed_records = []
 
 	tokens = line.split(",")
 	zipcode_with_quotes = tokens[0]
 	zipcode = int(zipcode_with_quotes.strip('"'));
-		
+	
 	start_year = 2015
 	end_year = 2019
 	
@@ -42,10 +44,14 @@ def parse_records(line):
 		month = 1;
 		
 		for month_index in range(start_month_index, end_month_index):
+			
 			price = tokens[month_index]
 			price = convert_price(price)
+				
 			date = str(year) + "-" + convert_month(month) + "-" + day
-			return (zipcode, date, price)
+			
+			parsed_records.append((zipcode, date, price))
+			
 			month += 1 # increments up to 12 for years 2015-2017
 			
 			# only go through the loop once for 2018
@@ -53,12 +59,14 @@ def parse_records(line):
 		
 		start_month_index = end_month_index
 		end_month_index = start_month_index + 12
+	
+	return parsed_records
 
 	
 with beam.Pipeline(options=PipelineOptions()) as p:
     
 	lines = p | 'ReadFile' >> beam.io.ReadFromText('gs://utcs-spr2018-datasets/zillow/no_header/Zip_MedianRentalPrice_1Bedroom.csv')
 	
-	tuple_records = lines | 'CreateTupleRecords' >> (beam.Map(parse_records))
+	list_records = lines | 'CreateListRecords' >> (beam.Map(parse_line))
         
-	tuple_records | 'WriteFile' >> beam.io.WriteToText('/home/shirley_cohen/code/tmp/tuple_records', file_name_suffix='.txt')
+	list_records | 'WriteFile' >> beam.io.WriteToText('/home/shirley_cohen/code/tmp/list_records', file_name_suffix='.txt')

@@ -61,7 +61,10 @@ def convert_month(month):
 		month_str = str(month)
 	return month_str
 
-def parse_records(line):
+	
+def parse_line(line):
+  
+	parsed_records = []
 
 	tokens = line.split(",")
 	zipcode_with_quotes = tokens[0]
@@ -81,12 +84,13 @@ def parse_records(line):
 		month = 1;
 		
 		for month_index in range(start_month_index, end_month_index):
+			
 			price = tokens[month_index]
 			price = convert_price(price)
 				
 			date = str(year) + "-" + convert_month(month) + "-" + day
 			
-			return (zipcode, date, price)
+			parsed_records.append((zipcode, date, price))
 			
 			month += 1 # increments up to 12 for years 2015-2017
 			
@@ -95,8 +99,14 @@ def parse_records(line):
 		
 		start_month_index = end_month_index
 		end_month_index = start_month_index + 12
-		
-		
+	
+	return parsed_records
+
+	
+def parse_records(records):
+	return records
+
+			
 def run(argv=None):	
 	
 	parser = argparse.ArgumentParser()
@@ -106,7 +116,7 @@ def run(argv=None):
       '--project=utcs-spr2018', # change to your project_id
       '--staging_location=gs://cs327e-dataflow/staging', # change to your bucket
       '--temp_location=gs://cs327e-dataflow/tmp', # change to your bucket
-      '--job_name=zillow-rentals-1bedroom' # assign descriptive name to this job, all in lower case letters
+      '--job_name=rentals-1bedroom' # assign descriptive name to this job, all in lower case letters
 	])
 	
 	pipeline_options = PipelineOptions(pipeline_args)
@@ -119,13 +129,17 @@ def run(argv=None):
     
 		lines = p | 'ReadFile' >> beam.io.ReadFromText('gs://utcs-spr2018-datasets/zillow/no_header/Zip_MedianRentalPrice_1Bedroom.csv')
 	
-		tuple_records = lines | 'CreateTupleRecords' >> (beam.Map(parse_records))
+		list_records = lines | 'CreateListRecords' >> (beam.Map(parse_line))
         
-		tuple_records | 'WriteTmpFile1' >> beam.io.WriteToText('gs://cs327e-dataflow/tmp/tuple_records', file_name_suffix='.txt')
+		list_records | 'WriteTmpFile1' >> beam.io.WriteToText('gs://cs327e-dataflow/tmp/list_records', file_name_suffix='.txt')
 	
+		tuple_records = list_records | 'CreateTupleRecords' >> (beam.FlatMap(parse_records))
+		
+		tuple_records | 'WriteTmpFile2' >> beam.io.WriteToText('gs://cs327e-dataflow/tmp/tuple_records', file_name_suffix='.txt')
+
 		bigquery_records = tuple_records | 'CreateBigQueryRecord' >> beam.Map(create_bigquery_record)
 	
-		bigquery_records | 'WriteTmpFile2' >> beam.io.WriteToText('gs://cs327e-dataflow/tmp/bq_records', file_name_suffix='.txt')
+		bigquery_records | 'WriteTmpFile3' >> beam.io.WriteToText('gs://cs327e-dataflow/tmp/bq_records', file_name_suffix='.txt')
 	
 		bigquery_records | 'WriteBigQuery' >> beam.io.Write(
 		    beam.io.BigQuerySink(
